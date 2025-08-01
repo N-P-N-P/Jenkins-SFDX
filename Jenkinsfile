@@ -41,7 +41,7 @@ pipeline {
                     ]) {
                         sh '''
                             export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                            echo "Authenticating..."
+                            echo "Authenticating with Salesforce..."
                             sf auth jwt grant --client-id $SFDX_CLIENT_ID --jwt-key-file "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instance-url $SF_ORG_INSTANCE_URL
                             sf config set target-org $SFDX_USERNAME
                         '''
@@ -53,15 +53,14 @@ pipeline {
         stage('Install sfdx CLI + Delta Plugin') {
             steps {
                 sh '''
-                    echo "Installing legacy sfdx CLI..."
-                    curl -s https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-x64.tar.xz -o sfdx.tar.xz
+                    echo "Installing legacy sfdx CLI (.tar.gz)..."
+                    curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.gz -o sfdx.tar.gz
                     mkdir -p sfdx-cli
-                    tar -xJf sfdx.tar.xz -C sfdx-cli --strip-components 1
-                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
+                    tar -xzf sfdx.tar.gz -C sfdx-cli --strip-components 1
 
+                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
                     echo "Installing sfdx-git-delta plugin..."
                     sfdx plugins:install sfdx-git-delta
-                    sfdx plugins
                 '''
             }
         }
@@ -69,12 +68,12 @@ pipeline {
         stage('Generate Delta') {
             steps {
                 sh '''
+                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
                     echo "Generating delta from origin/main to HEAD..."
                     git fetch origin main
                     git diff --name-only origin/main HEAD > changed_files.txt
                     cat changed_files.txt
 
-                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
                     sfdx sgd:source:delta --to HEAD --from origin/main --output delta --generate-delta
                 '''
             }
@@ -105,7 +104,6 @@ pipeline {
                     ]) {
                         sh '''
                             export PATH=$PATH:"${WORKSPACE}/sf/bin"
-
                             if [ -d "delta/package" ]; then
                                 echo "Deploying delta changes..."
                                 sf deploy metadata --metadata-dir delta/package --test-level RunLocalTests --target-org $SFDX_USERNAME
@@ -136,10 +134,10 @@ pipeline {
 
     post {
         success {
-            echo ' Delta deployment completed successfully!'
+            echo 'Delta deployment completed successfully!'
         }
         failure {
-            echo ' Deployment failed. Check logs for error details.'
+            echo 'Deployment failed. See logs above for troubleshooting.'
         }
     }
 }
