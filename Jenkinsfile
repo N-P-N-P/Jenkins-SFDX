@@ -82,15 +82,6 @@ pipeline {
             }
         }
 
-        // Stage 4: Install Dependencies (if needed)
-        stage('Install Dependencies') {
-            steps {
-                script {
-                    sh 'sf plugins:install @salesforce/lwc-dev-server'
-                    sh 'npm install'   // Assuming npm dependencies are required for your project
-                }
-            }
-        }
 
         // Stage 5: Run Tests
         stage('Run Tests') {
