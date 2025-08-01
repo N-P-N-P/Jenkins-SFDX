@@ -20,8 +20,12 @@ pipeline {
                         if ! command -v sfdx &> /dev/null
                         then
                             echo "Salesforce CLI not found, installing..."
-                            # Install Salesforce CLI using the official install script
-                            curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/install.sh | bash
+                            # Correct Salesforce CLI install URL
+                            curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-x64.tar.xz -o sfdx.tar.xz
+                            # Extract the downloaded tarball
+                            tar -xvzf sfdx.tar.xz
+                            # Install Salesforce CLI
+                            ./sfdx/install
                             # Add sfdx to the PATH
                             export PATH=$PATH:$(pwd)/sfdx/bin
                             echo "Salesforce CLI installed successfully"
