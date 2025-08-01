@@ -3,9 +3,8 @@ pipeline {
 
     environment {
         SF_ORG_INSTANCE_URL = 'https://login.salesforce.com'
-        SF_CLI_PATH = "${WORKSPACE}/sf/bin"
         SFDX_CLI_PATH = "${WORKSPACE}/sfdx-cli/bin"
-        PATH = "${PATH}:${SF_CLI_PATH}:${SFDX_CLI_PATH}"
+        PATH = "${PATH}:${SFDX_CLI_PATH}"
     }
 
     stages {
@@ -15,38 +14,33 @@ pipeline {
             }
         }
 
-        stage('Install Salesforce CLI (sf)') {
+        stage('Install Legacy sfdx CLI') {
             steps {
                 script {
                     sh '''
-                        if ! command -v sf &> /dev/null; then
-                            echo "Installing Salesforce CLI (sf)..."
-                            curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
-                            tar -xvf sf.tar.xz
-                            chmod +x ./sf/bin/sf
-                        fi
-                        sf --version
+                        echo "Installing legacy sfdx CLI (.tar.gz)..."
+                        curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.gz -o sfdx.tar.gz
+                        mkdir -p sfdx-cli
+                        tar -xzf sfdx.tar.gz -C sfdx-cli --strip-components 1
+
+                        # Force the use of legacy sfdx CLI by updating the PATH
+                        export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
+
+                        # Verify sfdx version
+                        sfdx --version
                     '''
                 }
             }
         }
 
-        stage('Install Legacy sfdx CLI and sfdx-git-delta Plugin') {
+        stage('Install sfdx-git-delta Plugin') {
             steps {
-                sh '''
-                    # Install legacy Salesforce CLI (sfdx)
-                    echo "Installing legacy sfdx CLI (.tar.gz)..."
-                    curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.gz -o sfdx.tar.gz
-                    mkdir -p sfdx-cli
-                    tar -xzf sfdx.tar.gz -C sfdx-cli --strip-components 1
-
-                    # Add sfdx to the PATH
-                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
-
-                    # Install the sfdx-git-delta plugin (legacy CLI)
-                    echo "Installing sfdx-git-delta plugin for sfdx CLI..."
-                    sfdx plugins:install sfdx-git-delta --force
-                '''
+                script {
+                    sh '''
+                        echo "Installing sfdx-git-delta plugin for sfdx CLI..."
+                        sfdx plugins:install sfdx-git-delta --force
+                    '''
+                }
             }
         }
 
@@ -59,10 +53,9 @@ pipeline {
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                     ]) {
                         sh '''
-                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
                             echo "Authenticating with Salesforce..."
-                            sf auth jwt grant --client-id $SFDX_CLIENT_ID --jwt-key-file "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instance-url $SF_ORG_INSTANCE_URL
-                            sf config set target-org $SFDX_USERNAME
+                            sfdx auth jwt grant --client-id $SFDX_CLIENT_ID --jwt-key-file "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instance-url $SF_ORG_INSTANCE_URL
+                            sfdx config set target-org $SFDX_USERNAME
                         '''
                     }
                 }
@@ -71,15 +64,16 @@ pipeline {
 
         stage('Generate Delta') {
             steps {
-                sh '''
-                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
-                    echo "Generating delta from origin/main to HEAD..."
-                    git fetch origin main
-                    git diff --name-only origin/main HEAD > changed_files.txt
-                    cat changed_files.txt
+                script {
+                    sh '''
+                        echo "Generating delta from origin/main to HEAD..."
+                        git fetch origin main
+                        git diff --name-only origin/main HEAD > changed_files.txt
+                        cat changed_files.txt
 
-                    sfdx sgd:source:delta --to HEAD --from origin/main --output delta --generate-delta
-                '''
+                        sfdx sgd:source:delta --to HEAD --from origin/main --output delta --generate-delta
+                    '''
+                }
             }
         }
 
@@ -91,8 +85,7 @@ pipeline {
                     ]) {
                         sh '''
                             echo "Running Apex tests..."
-                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                            sf apex run test --result-format junit --output-dir test-results --wait 10 --target-org $SFDX_USERNAME
+                            sfdx apex run test --result-format junit --output-dir test-results --wait 10 --target-org $SFDX_USERNAME
                         '''
                         junit 'test-results/test-result-*.xml'
                     }
@@ -107,10 +100,9 @@ pipeline {
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                     ]) {
                         sh '''
-                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
                             if [ -d "delta/package" ]; then
                                 echo "Deploying delta changes..."
-                                sf deploy metadata --metadata-dir delta/package --test-level RunLocalTests --target-org $SFDX_USERNAME
+                                sfdx force:source:deploy -p delta/package --testlevel RunLocalTests --target-org $SFDX_USERNAME
                             else
                                 echo "No delta/package directory found. Skipping deployment."
                             fi
@@ -127,8 +119,7 @@ pipeline {
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                     ]) {
                         sh '''
-                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                            sf org display --target-org $SFDX_USERNAME
+                            sfdx org display --target-org $SFDX_USERNAME
                         '''
                     }
                 }
