@@ -64,10 +64,13 @@ pipeline {
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Use sf CLI to authenticate
+                        // Ensure that the file path is correct by checking the location of the JWT key
+                        echo "JWT key file: $SFDX_JWT_KEY"
                         sh '''
                             echo "Authenticating with Salesforce using JWT..."
                             export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is correctly set
+
+                            # Explicitly use the full path to the JWT key file
                             sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile $SFDX_JWT_KEY --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
                         '''
                     }
