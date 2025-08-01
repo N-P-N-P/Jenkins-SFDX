@@ -4,6 +4,7 @@ pipeline {
     environment {
         // Salesforce CLI Environment Variables
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
+        SF_CLI_PATH = "/var/lib/jenkins/workspace/Jenkins SFDX/sf/bin"  // Path to Salesforce CLI binary
     }
 
     stages {
@@ -68,8 +69,7 @@ pipeline {
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Ensure that the file path is correct by checking the location of the JWT key
-                        echo "JWT key file: $SFDX_JWT_KEY"
+                        echo "JWT Key File: $SFDX_JWT_KEY"
                         sh '''
                             echo "Authenticating with Salesforce using JWT..."
                             export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is correctly set
@@ -82,36 +82,42 @@ pipeline {
             }
         }
 
-
-        // Stage 5: Run Tests
+        // Stage 4: Run Salesforce Tests
         stage('Run Tests') {
             steps {
                 script {
-                    sh 'sf force:apex:test:run --resultformat human --wait 10'
+                    // Ensure the PATH is correctly set for subsequent steps
+                    sh '''
+                        echo "Running Salesforce Apex tests..."
+                        export PATH=$PATH:/var/lib/jenkins/workspace/Jenkins\ SFDX/sf/bin  # Explicitly set PATH again
+                        sf force:apex:test:run --resultformat human --wait 10
+                    '''
                 }
             }
         }
 
-        // Stage 6: Deploy to Salesforce (using Delta Plugin for incremental deployment)
+        // Stage 5: Deploy to Salesforce (using Delta Plugin for incremental deployment)
         stage('Deploy to Salesforce') {
             steps {
                 script {
                     // Delta deployment - deploy only the changed files
                     sh '''
                         echo "Running Delta Deployment - Only deploying changed metadata..."
+                        export PATH=$PATH:/var/lib/jenkins/workspace/Jenkins\ SFDX/sf/bin  # Explicitly set PATH again
                         sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests
                     '''
                     
                     // Actual Delta deployment (only changed files are deployed)
                     sh '''
                         echo "Deploying source to Salesforce (only changes)..."
+                        export PATH=$PATH:/var/lib/jenkins/workspace/Jenkins\ SFDX/sf/bin  # Explicitly set PATH again
                         sf force:source:deploy -p force-app --deploydir deploy --testlevel RunLocalTests
                     '''
                 }
             }
         }
 
-        // Stage 7: Post-Deployment Steps
+        // Stage 6: Post-Deployment Steps
         stage('Post-Deployment') {
             steps {
                 script {
