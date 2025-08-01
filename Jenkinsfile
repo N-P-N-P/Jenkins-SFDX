@@ -26,27 +26,18 @@ pipeline {
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
 
-                            # List files to identify the extracted directory
+                            # List files in the current directory to inspect the extracted structure
                             echo "Listing extracted files:"
                             ls -alh
 
-                            # Check if any directory contains install.sh, and cd into that directory
-                            if [ -d "sf-linux-x64" ]; then
-                                cd sf-linux-x64
-                            elif [ -d "sf-cli" ]; then
-                                cd sf-cli
-                            elif [ -d "sf" ]; then
-                                cd sf
+                            # Check if 'install.sh' exists and make it executable
+                            if [ -f "install.sh" ]; then
+                                chmod +x install.sh
+                                ./install.sh --no-sudo
                             else
-                                echo "Error: Unable to locate the Salesforce CLI directory"
+                                echo "Error: install.sh script not found."
                                 exit 1
                             fi
-
-                            # Make sure the install.sh script is executable
-                            chmod +x install.sh
-
-                            # Install Salesforce CLI (sf) locally in the Jenkins workspace
-                            ./install.sh --no-sudo
 
                             # Verify installation
                             if command -v sf &> /dev/null; then
