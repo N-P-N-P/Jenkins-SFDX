@@ -4,7 +4,7 @@ pipeline {
     environment {
         SFDX_CLIENT_ID = credentials('salesforce-client-id')   // Jenkins credential for the client id
         SFDX_JWT_KEY = credentials('salesforce-jwt-key')       // Jenkins credential for the JWT key
-        SFDX_USERNAME = 'your-salesforce-username'             // Your Salesforce org username
+        SFDX_USERNAME = credentials('your-salesforce-username')// Your Salesforce org username
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'     // Salesforce instance URL (or test.salesforce.com)
     }
     
