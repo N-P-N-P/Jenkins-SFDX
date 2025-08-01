@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL (or test.salesforce.com)
+        SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
     }
 
     stages {
@@ -70,10 +70,10 @@ pipeline {
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
                         // Securely pass the JWT key file and client ID into the 'sh' step
-                        sh """
-                            # Authenticate using Salesforce CLI
-                            sf force:auth:jwt:grant --clientid ${SFDX_CLIENT_ID} --jwtkeyfile ${SFDX_JWT_KEY} --username ${SFDX_USERNAME} --instanceurl ${SFDX_INSTANCE_URL}
-                        """
+                        sh '''
+                            # Authenticate using Salesforce CLI securely
+                            sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile $SFDX_JWT_KEY --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
+                        '''
                     }
                 }
             }
