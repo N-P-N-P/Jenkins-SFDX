@@ -31,8 +31,8 @@ pipeline {
                             ls -alh
 
                             # Try to find the directory and cd into it
-                            # You should adjust this if the extracted files are in a different folder
-                            cd sf-linux-x64 || exit 1  # Modify this line based on the output of ls command
+                            # Navigate to the correct directory (modify if needed based on `ls` output)
+                            cd sf-linux-x64 || cd sf-cli || exit 1  # Adjust this line based on the `ls` command output
 
                             # Make sure the install.sh script is executable
                             chmod +x install.sh
