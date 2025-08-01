@@ -27,16 +27,6 @@ pipeline {
             }
         }
 
-        stage('Install sfdx-git-delta Plugin') {
-            steps {
-                sh '''
-                    echo "Installing sfdx-git-delta plugin..."
-                    export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
-                    echo y | sfdx plugins:install sfdx-git-delta --force
-                '''
-            }
-        }
-
         stage('Authenticate with Salesforce') {
             steps {
                 withCredentials([
@@ -51,19 +41,6 @@ pipeline {
                         sfdx config:set target-org=$SFDX_USERNAME
                     '''
                 }
-            }
-        }
-
-        stage('Generate Delta') {
-            steps {
-                sh '''
-                    echo "Generating delta from main branch..."
-                    export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
-                    git fetch origin main
-                    git diff --name-only origin/main HEAD > changed_files.txt
-                    cat changed_files.txt
-                    sfdx sgd:source:delta --to HEAD --from origin/main --output delta --generate-delta
-                '''
             }
         }
 
@@ -84,23 +61,19 @@ pipeline {
             }
         }
 
-        stage('Deploy Delta Changes') {
+        stage('Deploy Full Source') {
             steps {
                 withCredentials([string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')]) {
                     sh '''
+                        echo "Deploying full source from force-app directory..."
                         export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
-                        if [ -d "delta/package" ]; then
-                            echo "Deploying delta changes..."
-                            sfdx force:source:deploy -p delta/package --target-org $SFDX_USERNAME --testlevel RunLocalTests
-                        else
-                            echo "No delta/package directory found. Skipping deployment."
-                        fi
+                        sfdx force:source:deploy -p force-app --target-org $SFDX_USERNAME --testlevel RunLocalTests
                     '''
                 }
             }
         }
 
-        stage('Org Info') {
+        stage('Post-Deployment Org Info') {
             steps {
                 withCredentials([string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')]) {
                     sh '''
@@ -114,7 +87,7 @@ pipeline {
 
     post {
         success {
-            echo ' Delta deployment succeeded!'
+            echo ' Full deployment succeeded!'
         }
         failure {
             echo ' Deployment failed. Check logs.'
