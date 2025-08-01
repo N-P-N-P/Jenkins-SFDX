@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/your-username/your-sfdx-repository.git'
+                git 'https://github.com/N-P-N-P/Jenkins-SFDX.git'
             }
         }
         
