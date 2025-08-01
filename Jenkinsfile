@@ -2,133 +2,71 @@ pipeline {
     agent any
 
     environment {
-        // Salesforce CLI Environment Variables
-        SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
-        SF_CLI_PATH = "/var/lib/jenkins/workspace/Jenkins SFDX/sf/bin"  // Path to Salesforce CLI binary
-        
-        // Delta Lake Path (Optional)
-        DELTA_LAKE_PATH = '/path/to/delta_lake'  // Path to your Delta Lake working directory
-        SPARK_HOME = '/path/to/spark'  // Path to Spark installation
+        SPARK_HOME = '/opt/spark'  // Path to Spark installation
+        PYSPARK_PYTHON = 'python3'
+        LAST_PROCESSED_TIMESTAMP_FILE = '/path/to/last_processed_timestamp.txt'  // Path to store the last processed timestamp
     }
 
     stages {
-        // Stage 1: Checkout the repository with Salesforce and Delta Lake files
         stage('Checkout') {
             steps {
                 git url: 'https://github.com/N-P-N-P/Jenkins-SFDX.git', branch: 'main'
             }
         }
 
-        // Stage 2: Install Salesforce CLI (sf) if not already installed
-        stage('Install Salesforce CLI (sf)') {
+        stage('Run Incremental Data Processing') {
             steps {
                 script {
-                    sh '''
-                        if ! command -v sf &> /dev/null
-                        then
-                            echo "Salesforce CLI (sf) not found, installing..."
-                            curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
-                            tar -xvf sf.tar.xz
-                            echo "Salesforce CLI binary found. Adding to PATH."
-                            chmod +x ./sf/bin/sf
-                            export PATH=$PATH:$(pwd)/sf/bin
-                        else
-                            echo "Salesforce CLI (sf) is already installed."
-                        fi
-                    '''
-                    sh '''
-                        echo "Checking Salesforce CLI version..."
-                        export PATH=$PATH:$(pwd)/sf/bin  # Ensure it's available
-                        sf --version
-                    '''
-                }
-            }
-        }
+                    echo "Running incremental data processing..."
 
-        // Stage 3: Authenticate with Salesforce using JWT
-        stage('Authenticate with Salesforce') {
-            steps {
-                script {
-                    withCredentials([
-                        file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),
-                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'),
-                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
-                    ]) {
-                        echo "JWT Key File: $SFDX_JWT_KEY"
-                        sh '''
-                            echo "Authenticating with Salesforce using JWT..."
-                            export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is set
-                            sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
-                        '''
+                    // Read the last processed timestamp from the file
+                    def lastProcessedTimestamp = sh(script: "cat ${LAST_PROCESSED_TIMESTAMP_FILE}", returnStdout: true).trim()
+
+                    // If the file is empty (i.e., first run), set the timestamp to a very old date (or the beginning of the dataset)
+                    if (!lastProcessedTimestamp) {
+                        lastProcessedTimestamp = '1970-01-01T00:00:00'
                     }
-                }
-            }
-        }
 
-        // Stage 4: Run Delta Lake Job (process data using Spark and Delta)
-        stage('Run Delta Lake Data Pipeline') {
-            steps {
-                script {
-                    echo "Running Delta Lake pipeline..."
-                    // Run a simple Spark job that interacts with Delta Lake (example)
+                    // Run the Spark job to process only the new/updated data since the last processed timestamp
                     sh '''
-                        export SPARK_HOME=${SPARK_HOME}  # Set Spark home if needed
-                        export PYSPARK_PYTHON=python3
-                        spark-submit --class org.apache.spark.sql.delta.DeltaTable --master local[4] \
-                            ${DELTA_LAKE_PATH}/process_data.py  # Python script for processing data
+                        export SPARK_HOME='/opt/spark'
+                        export PATH=$PATH:$SPARK_HOME/bin
+
+                        echo "Verifying Spark installation..."
+                        spark-submit --version  # Ensure spark-submit is available
+
+                        # Running incremental data processing based on the last processed timestamp
+                        spark-submit --class org.apache.spark.sql.SparkSession \
+                            --master local[4] \
+                            --conf "spark.sql.warehouse.dir=/tmp/spark-warehouse" \
+                            --py-files ${WORKSPACE}/scripts/process_incremental_data.py \
+                            -- ${lastProcessedTimestamp}  # Pass the last processed timestamp as argument to your script
                     '''
                 }
             }
         }
 
-        // Stage 5: Run Salesforce Tests
-        stage('Run Tests') {
+        stage('Update Last Processed Timestamp') {
             steps {
                 script {
-                    sh '''
-                        echo "Running Salesforce Apex tests..."
-                        sf force:apex:test:run --resultformat human --wait 10
-                    '''
-                }
-            }
-        }
+                    echo "Updating last processed timestamp..."
 
-        // Stage 6: Deploy to Salesforce (only if tests are successful)
-        stage('Deploy to Salesforce') {
-            steps {
-                script {
-                    // Use Delta Deployment for faster deployment (deploy only changed files)
-                    sh '''
-                        echo "Deploying source to Salesforce..."
-                        sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests
-                    '''
-                    
-                    // Actual deployment
-                    sh '''
-                        echo "Deploying source to Salesforce..."
-                        sf force:source:deploy -p force-app --deploydir deploy --testlevel RunLocalTests
-                    '''
-                }
-            }
-        }
+                    // Fetch the most recent timestamp from the processed data (this could be the max timestamp from the last batch)
+                    def newTimestamp = sh(script: "python3 ${WORKSPACE}/scripts/fetch_latest_timestamp.py", returnStdout: true).trim()
 
-        // Stage 7: Post-Deployment Steps
-        stage('Post-Deployment') {
-            steps {
-                script {
-                    sh 'sf force:org:display'  // Verify the org details after deployment
+                    // Update the last processed timestamp file with the new timestamp
+                    writeFile file: LAST_PROCESSED_TIMESTAMP_FILE, text: newTimestamp
                 }
             }
         }
     }
 
-    // Post actions
     post {
         success {
-            echo 'Deployment successful!'
+            echo 'Incremental data processing completed successfully.'
         }
         failure {
-            echo 'Deployment failed.'
+            echo 'Incremental data processing failed.'
         }
     }
 }
