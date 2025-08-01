@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
+        SF_CLI_PATH = "/var/lib/jenkins/workspace/Jenkins SFDX/sf/bin"  // Path to Salesforce CLI binary
     }
 
     stages {
@@ -35,7 +36,7 @@ pipeline {
                                 echo "Salesforce CLI (sf) binary found."
                                 chmod +x ./sf/bin/sf
                                 
-                                # Add sf binary to PATH explicitly
+                                # Add sf binary to PATH explicitly for this stage
                                 export PATH=$PATH:$(pwd)/sf/bin
                                 echo "Salesforce CLI added to PATH."
                             else
@@ -81,8 +82,13 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    sh 'sf plugins:install @salesforce/lwc-dev-server'
-                    sh 'npm install'   // Assuming npm dependencies are required for your project
+                    sh '''
+                        # Ensure sf is in the PATH
+                        export PATH=$PATH:${WORKSPACE}/sf/bin
+
+                        echo "Installing LWC Dev Server plugin..."
+                        sf plugins:install @salesforce/lwc-dev-server
+                    '''
                 }
             }
         }
@@ -90,7 +96,10 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    sh 'sf force:apex:test:run --resultformat human --wait 10'
+                    sh '''
+                        echo "Running tests..."
+                        sf force:apex:test:run --resultformat human --wait 10
+                    '''
                 }
             }
         }
@@ -99,10 +108,16 @@ pipeline {
             steps {
                 script {
                     // Use Delta Deployment for faster deployments (only deploy changed files)
-                    sh 'sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests'   // Optional: dry-run deployment
+                    sh '''
+                        echo "Deploying source to Salesforce..."
+                        sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests
+                    '''
                     
                     // Actual deployment
-                    sh 'sf force:source:deploy -p force-app --deploydir deploy --testlevel RunLocalTests'
+                    sh '''
+                        echo "Deploying source to Salesforce..."
+                        sf force:source:deploy -p force-app --deploydir deploy --testlevel RunLocalTests
+                    '''
                 }
             }
         }
