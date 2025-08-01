@@ -26,12 +26,16 @@ pipeline {
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
 
+                            # List the extracted files for debugging
+                            echo "Extracted files:"
+                            ls -l
+
                             # Check if the 'sf' binary exists in the extracted folder
                             if [ -f "./sf/bin/sf" ]; then
                                 echo "Salesforce CLI (sf) binary found."
                                 chmod +x ./sf/bin/sf
                                 
-                                # Add sf binary to PATH
+                                # Add sf binary to PATH explicitly
                                 export PATH=$PATH:$(pwd)/sf/bin
                                 echo "Salesforce CLI added to PATH."
                             else
@@ -44,13 +48,9 @@ pipeline {
                     '''
                     // After adding to PATH, check if `sf` works by checking its version
                     sh '''
-                        if ! command -v sf &> /dev/null
-                        then
-                            echo "Error: sf command not found after installation."
-                            exit 1
-                        else
-                            sf --version
-                        fi
+                        echo "Checking Salesforce CLI version..."
+                        export PATH=$PATH:$(pwd)/sf/bin  # Explicitly set PATH again
+                        sf --version
                     '''
                 }
             }
@@ -67,6 +67,7 @@ pipeline {
                         // Use sf CLI to authenticate
                         sh '''
                             echo "Authenticating with Salesforce using JWT..."
+                            export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is correctly set
                             sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile $SFDX_JWT_KEY --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
                         '''
                     }
