@@ -30,9 +30,17 @@ pipeline {
                             echo "Listing extracted files:"
                             ls -alh
 
-                            # Try to find the directory and cd into it
-                            # Navigate to the correct directory (modify if needed based on `ls` output)
-                            cd sf-linux-x64 || cd sf-cli || exit 1  # Adjust this line based on the `ls` command output
+                            # Check if any directory contains install.sh, and cd into that directory
+                            if [ -d "sf-linux-x64" ]; then
+                                cd sf-linux-x64
+                            elif [ -d "sf-cli" ]; then
+                                cd sf-cli
+                            elif [ -d "sf" ]; then
+                                cd sf
+                            else
+                                echo "Error: Unable to locate the Salesforce CLI directory"
+                                exit 1
+                            fi
 
                             # Make sure the install.sh script is executable
                             chmod +x install.sh
