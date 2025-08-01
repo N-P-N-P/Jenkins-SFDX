@@ -71,13 +71,8 @@ pipeline {
                     ]) {
                         // Securely pass the JWT key file and client ID into the 'sh' step
                         sh """
-                            export SFDX_CLIENT_ID=${SFDX_CLIENT_ID}
-                            export SFDX_JWT_KEY=${SFDX_JWT_KEY}  # This is now a file path
-                            export SFDX_USERNAME=${SFDX_USERNAME}
-                            export SFDX_INSTANCE_URL=${SFDX_INSTANCE_URL}
-                            
                             # Authenticate using Salesforce CLI
-                            sf force:auth:jwt:grant --clientid \$SFDX_CLIENT_ID --jwtkeyfile \$SFDX_JWT_KEY --username \$SFDX_USERNAME --instanceurl \$SFDX_INSTANCE_URL
+                            sf force:auth:jwt:grant --clientid ${SFDX_CLIENT_ID} --jwtkeyfile ${SFDX_JWT_KEY} --username ${SFDX_USERNAME} --instanceurl ${SFDX_INSTANCE_URL}
                         """
                     }
                 }
