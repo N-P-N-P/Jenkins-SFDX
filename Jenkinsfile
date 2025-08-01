@@ -39,6 +39,7 @@ pipeline {
                             if [ -f "./sf/bin/sf" ]; then
                                 echo "Salesforce CLI (sf) binary found at ./sf/bin/sf."
                                 chmod +x ./sf/bin/sf
+                                export PATH=$PATH:$(pwd)/sf/bin  # Add sf to PATH
                                 ./sf/bin/sf --version
                             else
                                 echo "Error: Salesforce CLI (sf) binary not found."
@@ -68,6 +69,7 @@ pipeline {
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
+                        // Securely pass the JWT key file and client ID into the 'sh' step
                         sh """
                             sf force:auth:jwt:grant \
                                 --clientid ${SFDX_CLIENT_ID} \
