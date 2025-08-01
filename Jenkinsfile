@@ -2,76 +2,62 @@ pipeline {
     agent any
 
     environment {
+        // Salesforce CLI Environment Variables
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
         SF_CLI_PATH = "/var/lib/jenkins/workspace/Jenkins SFDX/sf/bin"  // Path to Salesforce CLI binary
+        
+        // Delta Lake Path (Optional)
+        DELTA_LAKE_PATH = '/path/to/delta_lake'  // Path to your Delta Lake working directory
+        SPARK_HOME = '/path/to/spark'  // Path to Spark installation
     }
 
     stages {
+        // Stage 1: Checkout the repository with Salesforce and Delta Lake files
         stage('Checkout') {
             steps {
                 git url: 'https://github.com/N-P-N-P/Jenkins-SFDX.git', branch: 'main'
             }
         }
 
+        // Stage 2: Install Salesforce CLI (sf) if not already installed
         stage('Install Salesforce CLI (sf)') {
             steps {
                 script {
-                    // Check if sf is already installed
                     sh '''
                         if ! command -v sf &> /dev/null
                         then
                             echo "Salesforce CLI (sf) not found, installing..."
-                            # Download Salesforce CLI
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
-                            
-                            # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
-
-                            # List the extracted files for debugging
-                            echo "Extracted files:"
-                            ls -l
-
-                            # Check if the 'sf' binary exists in the extracted folder
-                            if [ -f "./sf/bin/sf" ]; then
-                                echo "Salesforce CLI (sf) binary found."
-                                chmod +x ./sf/bin/sf
-                                
-                                # Add sf binary to PATH explicitly for this stage
-                                export PATH=$PATH:$(pwd)/sf/bin
-                                echo "Salesforce CLI added to PATH."
-                            else
-                                echo "Error: Salesforce CLI (sf) binary not found."
-                                exit 1
-                            fi
+                            echo "Salesforce CLI binary found. Adding to PATH."
+                            chmod +x ./sf/bin/sf
+                            export PATH=$PATH:$(pwd)/sf/bin
                         else
                             echo "Salesforce CLI (sf) is already installed."
                         fi
                     '''
-                    // After adding to PATH, check if `sf` works by checking its version
                     sh '''
                         echo "Checking Salesforce CLI version..."
-                        export PATH=$PATH:$(pwd)/sf/bin  # Explicitly set PATH again
+                        export PATH=$PATH:$(pwd)/sf/bin  # Ensure it's available
                         sf --version
                     '''
                 }
             }
         }
 
+        // Stage 3: Authenticate with Salesforce using JWT
         stage('Authenticate with Salesforce') {
             steps {
                 script {
                     withCredentials([
-                        file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),  // Secure JWT key file
-                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
-                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
+                        file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),
+                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'),
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                     ]) {
-                        // Ensure that the file path is correct by checking the location of the JWT key
-                        echo "JWT key file: $SFDX_JWT_KEY"
+                        echo "JWT Key File: $SFDX_JWT_KEY"
                         sh '''
                             echo "Authenticating with Salesforce using JWT..."
-                            export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is correctly set
-
-                            # Use the full file path for JWT key file argument
+                            export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is set
                             sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
                         '''
                     }
@@ -79,35 +65,59 @@ pipeline {
             }
         }
 
+        // Stage 4: Install Dependencies (for Salesforce and Delta Lake)
         stage('Install Dependencies') {
             steps {
                 script {
+                    // Install Salesforce LWC Dev Server plugin
                     sh '''
-                        # Ensure sf is in the PATH
                         export PATH=$PATH:${WORKSPACE}/sf/bin
-
                         echo "Installing LWC Dev Server plugin..."
                         sf plugins:install @salesforce/lwc-dev-server
+                    '''
+                    // Install Delta Lake dependencies (Python, Spark, etc.)
+                    sh '''
+                        echo "Setting up Delta Lake dependencies..."
+                        # Example: Install Delta Lake Python dependencies (if using PySpark)
+                        pip install delta-spark pyspark
                     '''
                 }
             }
         }
 
+        // Stage 5: Run Delta Lake Job (process data using Spark and Delta)
+        stage('Run Delta Lake Data Pipeline') {
+            steps {
+                script {
+                    echo "Running Delta Lake pipeline..."
+                    // Run a simple Spark job that interacts with Delta Lake (example)
+                    sh '''
+                        export SPARK_HOME=${SPARK_HOME}  # Set Spark home if needed
+                        export PYSPARK_PYTHON=python3
+                        spark-submit --class org.apache.spark.sql.delta.DeltaTable --master local[4] \
+                            ${DELTA_LAKE_PATH}/process_data.py  # Python script for processing data
+                    '''
+                }
+            }
+        }
+
+        // Stage 6: Run Salesforce Tests
         stage('Run Tests') {
             steps {
                 script {
                     sh '''
-                        echo "Running tests..."
+                        echo "Running Salesforce Apex tests..."
                         sf force:apex:test:run --resultformat human --wait 10
                     '''
                 }
             }
         }
 
+        // Stage 7: Deploy to Salesforce (only if tests are successful)
         stage('Deploy to Salesforce') {
             steps {
                 script {
-                    // Use Delta Deployment for faster deployments (only deploy changed files)
+                    // Use Delta Deployment for faster deployment (deploy only changed files)
                     sh '''
                         echo "Deploying source to Salesforce..."
                         sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests
@@ -122,15 +132,17 @@ pipeline {
             }
         }
 
+        // Stage 8: Post-Deployment Steps
         stage('Post-Deployment') {
             steps {
                 script {
-                    sh 'sf force:org:display'  // Display org details to verify deployment
+                    sh 'sf force:org:display'  // Verify the org details after deployment
                 }
             }
         }
     }
 
+    // Post actions
     post {
         success {
             echo 'Deployment successful!'
