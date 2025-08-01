@@ -6,9 +6,9 @@ pipeline {
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
         SF_CLI_PATH = "/var/lib/jenkins/workspace/Jenkins SFDX/sf/bin"  // Path to Salesforce CLI binary
         
-        // Delta Lake Path (Optional)
-        DELTA_LAKE_PATH = '/path/to/delta_lake'  // Path to your Delta Lake working directory
+        // Spark Home and Delta core JAR location (for Delta processing)
         SPARK_HOME = '/path/to/spark'  // Path to Spark installation
+        DELTA_CORE_JAR = '/path/to/spark/jars/delta-core_2.12-1.0.0.jar'  // Path to Delta core jar
     }
 
     stages {
@@ -70,12 +70,13 @@ pipeline {
             steps {
                 script {
                     echo "Running Delta Lake pipeline..."
-                    // Run a simple Spark job that interacts with Delta Lake (example)
+                    // Run Spark job for Delta processing
                     sh '''
                         export SPARK_HOME=${SPARK_HOME}  # Set Spark home if needed
                         export PYSPARK_PYTHON=python3
                         spark-submit --class org.apache.spark.sql.delta.DeltaTable --master local[4] \
-                            ${DELTA_LAKE_PATH}/process_data.py  # Python script for processing data
+                            --jars ${DELTA_CORE_JAR} \
+                            /path/to/your/script/process_data.py  # Python script for processing data
                     '''
                 }
             }
