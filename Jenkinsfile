@@ -2,7 +2,6 @@ pipeline {
     agent any
     
     environment {
-        // We only need SFDX_INSTANCE_URL here since others are handled in withCredentials
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL (or test.salesforce.com)
     }
     
@@ -22,13 +21,13 @@ pipeline {
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Use the injected credentials in the sfdx command
+                        // Securely pass credentials as environment variables to the 'sh' step
                         sh """
-                            sfdx force:auth:jwt:grant \
-                                --clientid ${SFDX_CLIENT_ID} \
-                                --jwtkeyfile ${SFDX_JWT_KEY} \
-                                --username ${SFDX_USERNAME} \
-                                --instanceurl ${SFDX_INSTANCE_URL}
+                            export SFDX_CLIENT_ID=${SFDX_CLIENT_ID}
+                            export SFDX_JWT_KEY=${SFDX_JWT_KEY}
+                            export SFDX_USERNAME=${SFDX_USERNAME}
+                            export SFDX_INSTANCE_URL=${SFDX_INSTANCE_URL}
+                            sfdx force:auth:jwt:grant --clientid \$SFDX_CLIENT_ID --jwtkeyfile \$SFDX_JWT_KEY --username \$SFDX_USERNAME --instanceurl \$SFDX_INSTANCE_URL
                         """
                     }
                 }
