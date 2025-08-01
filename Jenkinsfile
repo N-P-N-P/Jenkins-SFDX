@@ -20,8 +20,7 @@ pipeline {
                     sh '''
                         if ! command -v sf &> /dev/null
                         then
-                            echo "Salesforce CLI not found. Installing..."
-
+                            echo "Installing Salesforce CLI (sf)..."
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
                             tar -xvf sf.tar.xz
 
@@ -29,11 +28,11 @@ pipeline {
                                 chmod +x ./sf/bin/sf
                                 echo "Salesforce CLI installed."
                             else
-                                echo "Error: sf binary not found after extraction."
+                                echo "Error: sf binary not found."
                                 exit 1
                             fi
                         else
-                            echo "Salesforce CLI is already installed."
+                            echo "Salesforce CLI already installed."
                         fi
 
                         export PATH=$PATH:"${WORKSPACE}/sf/bin"
@@ -52,13 +51,13 @@ pipeline {
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                     ]) {
                         sh '''
-                            echo "Authenticating with Salesforce using JWT..."
+                            echo "Authenticating with Salesforce..."
                             export PATH=$PATH:"${WORKSPACE}/sf/bin"
 
-                            sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instanceurl $SF_ORG_INSTANCE_URL
+                            sf auth jwt grant --client-id $SFDX_CLIENT_ID --jwt-key-file "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instance-url $SF_ORG_INSTANCE_URL
 
                             echo "Setting default org..."
-                            sf config set target-org=$SFDX_USERNAME
+                            sf config set target-org $SFDX_USERNAME
                         '''
                     }
                 }
@@ -71,7 +70,7 @@ pipeline {
                     sh '''
                         echo "Running Apex tests..."
                         export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                        sf force:apex:test:run --resultformat junit --outputdir test-results --wait 10
+                        sf apex run test --result-format junit --output-dir test-results --wait 10 --target-org $SFDX_USERNAME
                     '''
                     junit 'test-results/test-result-*.xml'
                 }
@@ -84,10 +83,10 @@ pipeline {
                     sh '''
                         echo "Check-only deployment..."
                         export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                        sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests
+                        sf deploy metadata --metadata-dir force-app --dry-run --test-level RunLocalTests --target-org $SFDX_USERNAME
 
                         echo "Actual deployment..."
-                        sf force:source:deploy -p force-app --testlevel RunLocalTests
+                        sf deploy metadata --metadata-dir force-app --test-level RunLocalTests --target-org $SFDX_USERNAME
                     '''
                 }
             }
@@ -99,7 +98,7 @@ pipeline {
                     sh '''
                         echo "Displaying org info..."
                         export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                        sf org display
+                        sf org display --target-org $SFDX_USERNAME
                     '''
                 }
             }
