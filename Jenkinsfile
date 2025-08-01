@@ -60,7 +60,7 @@ pipeline {
 
                     export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
                     echo "Installing sfdx-git-delta plugin..."
-                    sfdx plugins:install sfdx-git-delta
+                    sfdx plugins:install sfdx-git-delta --force
                 '''
             }
         }
@@ -134,10 +134,10 @@ pipeline {
 
     post {
         success {
-            echo 'Delta deployment completed successfully!'
+            echo ' Delta deployment completed successfully!'
         }
         failure {
-            echo 'Deployment failed. See logs above for troubleshooting.'
+            echo ' Deployment failed. See logs above for troubleshooting.'
         }
     }
 }
