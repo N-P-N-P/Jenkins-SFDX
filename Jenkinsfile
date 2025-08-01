@@ -70,8 +70,8 @@ pipeline {
                             echo "Authenticating with Salesforce using JWT..."
                             export PATH=$PATH:$(pwd)/sf/bin  # Ensure PATH is correctly set
 
-                            # Explicitly use the full path to the JWT key file
-                            sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile $SFDX_JWT_KEY --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
+                            # Use the full file path for JWT key file argument
+                            sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
                         '''
                     }
                 }
