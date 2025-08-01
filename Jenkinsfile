@@ -18,9 +18,19 @@ pipeline {
         stage('Authenticate with Salesforce') {
             steps {
                 script {
-                    sh """
-                    sfdx force:auth:jwt:grant --clientid ${SFDX_CLIENT_ID} --jwtkeyfile ${SFDX_JWT_KEY} --username ${SFDX_USERNAME} --instanceurl ${SFDX_INSTANCE_URL}
-                    """
+                     withCredentials([
+                        file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),
+                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID')
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME'),
+                    ]) {
+                        // Securely pass the JWT key file and client ID into the 'sh' step
+                        sh """
+                            sfdx force:auth:jwt:grant \
+                                --clientid ${SFDX_CLIENT_ID} \
+                                --jwtkeyfile ${JWT_KEY_FILE} \
+                                --username ${SFDX_USERNAME} \
+                                --instanceurl ${SFDX_INSTANCE_URL}
+                        """
                 }
             }
         }
