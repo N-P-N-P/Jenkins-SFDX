@@ -20,8 +20,8 @@ pipeline {
                 script {
                      withCredentials([
                         file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),
-                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID')
-                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME'),
+                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'),
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                     ]) {
                         // Securely pass the JWT key file and client ID into the 'sh' step
                         sh """
