@@ -31,6 +31,25 @@ pipeline {
             }
         }
 
+        stage('Install Legacy sfdx CLI and sfdx-git-delta Plugin') {
+            steps {
+                sh '''
+                    # Install legacy Salesforce CLI (sfdx)
+                    echo "Installing legacy sfdx CLI (.tar.gz)..."
+                    curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.gz -o sfdx.tar.gz
+                    mkdir -p sfdx-cli
+                    tar -xzf sfdx.tar.gz -C sfdx-cli --strip-components 1
+
+                    # Add sfdx to the PATH
+                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
+
+                    # Install the sfdx-git-delta plugin (legacy CLI)
+                    echo "Installing sfdx-git-delta plugin for sfdx CLI..."
+                    sfdx plugins:install sfdx-git-delta --force
+                '''
+            }
+        }
+
         stage('Authenticate with Salesforce') {
             steps {
                 script {
@@ -47,21 +66,6 @@ pipeline {
                         '''
                     }
                 }
-            }
-        }
-
-        stage('Install sfdx CLI + Delta Plugin') {
-            steps {
-                sh '''
-                    echo "Installing legacy sfdx CLI (.tar.gz)..."
-                    curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.gz -o sfdx.tar.gz
-                    mkdir -p sfdx-cli
-                    tar -xzf sfdx.tar.gz -C sfdx-cli --strip-components 1
-
-                    export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
-                    echo "Installing sfdx-git-delta plugin..."
-                    sfdx plugins:install sfdx-git-delta --yes --no-prompt --force
-                '''
             }
         }
 
