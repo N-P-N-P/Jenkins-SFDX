@@ -15,18 +15,23 @@ pipeline {
         stage('Install Salesforce CLI') {
             steps {
                 script {
-                    // Install Salesforce CLI if it's not already installed
+                    // Check if Salesforce CLI is already installed
                     sh '''
                         if ! command -v sfdx &> /dev/null
                         then
                             echo "Salesforce CLI not found, installing..."
-                            # Use the official installation script for Salesforce CLI
-                            curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/install.sh | bash
-                            # Check if the installation was successful
-                            if command -v sfdx &> /dev/null; then
+                            # Try downloading and installing Salesforce CLI from the correct URL
+                            curl -L https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-x64.tar.xz -o sfdx.tar.xz
+                            
+                            # Check if the download was successful and if the file is a valid archive
+                            if [ -s sfdx.tar.xz ]; then
+                                echo "Salesforce CLI downloaded successfully"
+                                tar -xvf sfdx.tar.xz
+                                ./sfdx/install
+                                export PATH=$PATH:$(pwd)/sfdx/bin
                                 echo "Salesforce CLI installed successfully"
                             else
-                                echo "Salesforce CLI installation failed"
+                                echo "Salesforce CLI download failed"
                                 exit 1
                             fi
                         else
@@ -56,7 +61,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Install Dependencies') {
             steps {
                 script {
