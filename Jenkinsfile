@@ -2,10 +2,8 @@ pipeline {
     agent any
     
     environment {
-        SFDX_CLIENT_ID = credentials('salesforce-client-id')   // Jenkins credential for the client id
-        SFDX_JWT_KEY = credentials('salesforce-jwt-key')       // Jenkins credential for the JWT key
-        SFDX_USERNAME = credentials('your-salesforce-username')// Your Salesforce org username
-        SFDX_INSTANCE_URL = 'https://login.salesforce.com'     // Salesforce instance URL (or test.salesforce.com)
+        // We only need SFDX_INSTANCE_URL here since others are handled in withCredentials
+        SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL (or test.salesforce.com)
     }
     
     stages {
@@ -18,19 +16,21 @@ pipeline {
         stage('Authenticate with Salesforce') {
             steps {
                 script {
-                     withCredentials([
-                        file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),
-                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'),
-                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
+                    // Using withCredentials to securely inject secrets
+                    withCredentials([
+                        file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),  // Secure JWT key file
+                        string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Securely pass the JWT key file and client ID into the 'sh' step
+                        // Use the injected credentials in the sfdx command
                         sh """
                             sfdx force:auth:jwt:grant \
                                 --clientid ${SFDX_CLIENT_ID} \
-                                --jwtkeyfile ${JWT_KEY_FILE} \
+                                --jwtkeyfile ${SFDX_JWT_KEY} \
                                 --username ${SFDX_USERNAME} \
                                 --instanceurl ${SFDX_INSTANCE_URL}
                         """
+                    }
                 }
             }
         }
