@@ -11,17 +11,38 @@ pipeline {
                 git url: 'https://github.com/N-P-N-P/Jenkins-SFDX.git', branch: 'main'
             }
         }
-        
+
+        stage('Install Salesforce CLI') {
+            steps {
+                script {
+                    // Install Salesforce CLI if it's not already installed
+                    sh '''
+                        if ! command -v sfdx &> /dev/null
+                        then
+                            echo "Salesforce CLI not found, installing..."
+                            # Download and install Salesforce CLI (for Linux/Unix-based systems)
+                            wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-x64.tar.xz
+                            tar -xvf sfdx-linux-x64.tar.xz
+                            ./sfdx/install
+                            # Add sfdx to the PATH
+                            export PATH=$PATH:$(pwd)/sfdx/bin
+                            echo "Salesforce CLI installed successfully"
+                        else
+                            echo "Salesforce CLI is already installed"
+                        fi
+                    '''
+                }
+            }
+        }
+
         stage('Authenticate with Salesforce') {
             steps {
                 script {
-                    // Using withCredentials to securely inject secrets
                     withCredentials([
                         file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),  // Secure JWT key file
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Run the authentication command without using Groovy interpolation for secrets
                         sh """
                             sfdx force:auth:jwt:grant \
                                 --clientid ${SFDX_CLIENT_ID} \
@@ -37,6 +58,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
+                    // Make sure sfdx plugins are installed, if needed
                     sh 'sfdx plugins:install @salesforce/lwc-dev-server'
                     sh 'npm install'   // Assuming npm dependencies are required for your project
                 }
