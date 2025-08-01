@@ -14,6 +14,16 @@ pipeline {
             }
         }
 
+        stage('Create .forceignore') {
+            steps {
+                script {
+                    writeFile file: '.forceignore', text: '''
+force-app/main/default/extlClntAppPolicies/Devops_JWT_plcy.ecaPlcy-meta.xml
+                    '''.stripIndent()
+                }
+            }
+        }
+
         stage('Install legacy SFDX CLI') {
             steps {
                 sh '''
@@ -61,7 +71,7 @@ pipeline {
             }
         }
 
-        stage('Deploy Full Source') {
+        stage('Deploy Full Source (force-app)') {
             steps {
                 withCredentials([string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')]) {
                     sh '''
@@ -87,10 +97,10 @@ pipeline {
 
     post {
         success {
-            echo ' Full deployment succeeded!'
+            echo ' Deployment completed successfully!'
         }
         failure {
-            echo ' Deployment failed. Check logs.'
+            echo ' Deployment failed. Check the logs for more information.'
         }
     }
 }
