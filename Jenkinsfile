@@ -20,10 +20,8 @@ pipeline {
                         if ! command -v sfdx &> /dev/null
                         then
                             echo "Salesforce CLI not found, installing..."
-                            # Download and install Salesforce CLI (for Linux/Unix-based systems)
-                            wget https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-x64.tar.xz
-                            tar -xvf sfdx-linux-x64.tar.xz
-                            ./sfdx/install
+                            # Install Salesforce CLI using the official install script
+                            curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/install.sh | bash
                             # Add sfdx to the PATH
                             export PATH=$PATH:$(pwd)/sfdx/bin
                             echo "Salesforce CLI installed successfully"
@@ -58,7 +56,6 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Make sure sfdx plugins are installed, if needed
                     sh 'sfdx plugins:install @salesforce/lwc-dev-server'
                     sh 'npm install'   // Assuming npm dependencies are required for your project
                 }
