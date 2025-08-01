@@ -15,23 +15,25 @@ pipeline {
         stage('Install Salesforce CLI') {
             steps {
                 script {
-                    // Check if Salesforce CLI is already installed
+                    // Check if Salesforce CLI (sf) is already installed
                     sh '''
-                        if ! command -v sfdx &> /dev/null
+                        if ! command -v sf &> /dev/null
                         then
                             echo "Salesforce CLI not found, installing..."
-                            # Try downloading and installing Salesforce CLI from the correct URL
-                            curl -L https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-x64.tar.xz -o sfdx.tar.xz
+                            # Download and install Salesforce CLI (sf)
+                            curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
                             
-                            # Check if the download was successful and if the file is a valid archive
-                            if [ -s sfdx.tar.xz ]; then
-                                echo "Salesforce CLI downloaded successfully"
-                                tar -xvf sfdx.tar.xz
-                                ./sfdx/install
-                                export PATH=$PATH:$(pwd)/sfdx/bin
+                            # Extract the downloaded tar.xz file
+                            tar -xvf sf.tar.xz
+                            
+                            # Install Salesforce CLI
+                            sudo ./install.sh
+                            
+                            # Verify installation
+                            if command -v sf &> /dev/null; then
                                 echo "Salesforce CLI installed successfully"
                             else
-                                echo "Salesforce CLI download failed"
+                                echo "Salesforce CLI installation failed"
                                 exit 1
                             fi
                         else
@@ -51,7 +53,7 @@ pipeline {
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
                         sh """
-                            sfdx force:auth:jwt:grant \
+                            sf force:auth:jwt:grant \
                                 --clientid ${SFDX_CLIENT_ID} \
                                 --jwtkeyfile ${SFDX_JWT_KEY} \
                                 --username ${SFDX_USERNAME} \
@@ -65,7 +67,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    sh 'sfdx plugins:install @salesforce/lwc-dev-server'
+                    sh 'sf plugins:install @salesforce/lwc-dev-server'
                     sh 'npm install'   // Assuming npm dependencies are required for your project
                 }
             }
@@ -74,7 +76,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    sh 'sfdx force:apex:test:run --resultformat human --wait 10'
+                    sh 'sf force:apex:test:run --resultformat human --wait 10'
                 }
             }
         }
@@ -83,10 +85,10 @@ pipeline {
             steps {
                 script {
                     // Use Delta Deployment for faster deployments (only deploy changed files)
-                    sh 'sfdx force:source:deploy -p force-app --checkonly --testlevel RunLocalTests'   // Optional: dry-run deployment
+                    sh 'sf force:source:deploy -p force-app --checkonly --testlevel RunLocalTests'   // Optional: dry-run deployment
                     
                     // Actual deployment
-                    sh 'sfdx force:source:deploy -p force-app --deploydir deploy --testlevel RunLocalTests'
+                    sh 'sf force:source:deploy -p force-app --deploydir deploy --testlevel RunLocalTests'
                 }
             }
         }
@@ -94,7 +96,7 @@ pipeline {
         stage('Post-Deployment') {
             steps {
                 script {
-                    sh 'sfdx force:org:display'  // Display org details to verify deployment
+                    sh 'sf force:org:display'  // Display org details to verify deployment
                 }
             }
         }
