@@ -18,19 +18,12 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        if ! command -v sf &> /dev/null
-                        then
-                            echo "Installing Salesforce CLI (sf)..."
+                        if ! command -v sf &> /dev/null; then
+                            echo "Installing Salesforce CLI..."
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
                             tar -xvf sf.tar.xz
-
-                            if [ -f "./sf/bin/sf" ]; then
-                                chmod +x ./sf/bin/sf
-                                echo "Salesforce CLI installed."
-                            else
-                                echo "Error: sf binary not found."
-                                exit 1
-                            fi
+                            chmod +x ./sf/bin/sf
+                            echo "Salesforce CLI installed."
                         else
                             echo "Salesforce CLI already installed."
                         fi
@@ -53,10 +46,7 @@ pipeline {
                         sh '''
                             echo "Authenticating with Salesforce..."
                             export PATH=$PATH:"${WORKSPACE}/sf/bin"
-
                             sf auth jwt grant --client-id $SFDX_CLIENT_ID --jwt-key-file "$SFDX_JWT_KEY" --username $SFDX_USERNAME --instance-url $SF_ORG_INSTANCE_URL
-
-                            echo "Setting default org..."
                             sf config set target-org $SFDX_USERNAME
                         '''
                     }
@@ -64,42 +54,82 @@ pipeline {
             }
         }
 
+        stage('Install Delta Plugin') {
+            steps {
+                sh '''
+                    echo "Installing sfdx-git-delta plugin..."
+                    export PATH=$PATH:"${WORKSPACE}/sf/bin"
+                    sf plugins install sfdx-git-delta || echo "Plugin already installed"
+                '''
+            }
+        }
+
+        stage('Generate Delta') {
+            steps {
+                sh '''
+                    echo "Generating delta from last commit..."
+                    export PATH=$PATH:"${WORKSPACE}/sf/bin"
+                    git fetch origin main
+                    git diff --name-only origin/main HEAD > changed_files.txt
+                    echo "Changed files:"
+                    cat changed_files.txt
+
+                    # Generate delta with sgd plugin
+                    sf sgd source delta --to HEAD --from origin/main --output delta --generate-delta
+                '''
+            }
+        }
+
         stage('Run Apex Tests') {
             steps {
                 script {
-                    sh '''
-                        echo "Running Apex tests..."
-                        export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                        sf apex run test --result-format junit --output-dir test-results --wait 10 --target-org $SFDX_USERNAME
-                    '''
-                    junit 'test-results/test-result-*.xml'
+                    withCredentials([
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
+                    ]) {
+                        sh '''
+                            echo "Running Apex tests..."
+                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
+                            sf apex run test --result-format junit --output-dir test-results --wait 10 --target-org $SFDX_USERNAME
+                        '''
+                        junit 'test-results/test-result-*.xml'
+                    }
                 }
             }
         }
 
-        stage('Deploy to Salesforce') {
+        stage('Delta Deploy') {
             steps {
                 script {
-                    sh '''
-                        echo "Check-only deployment..."
-                        export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                        sf deploy metadata --metadata-dir force-app --dry-run --test-level RunLocalTests --target-org $SFDX_USERNAME
+                    withCredentials([
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
+                    ]) {
+                        sh '''
+                            echo "Deploying delta changes..."
+                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
 
-                        echo "Actual deployment..."
-                        sf deploy metadata --metadata-dir force-app --test-level RunLocalTests --target-org $SFDX_USERNAME
-                    '''
+                            if [ -d "delta/package" ]; then
+                                echo "Delta package directory found. Deploying..."
+                                sf deploy metadata --metadata-dir delta/package --test-level RunLocalTests --target-org $SFDX_USERNAME
+                            else
+                                echo "No delta changes detected. Skipping deployment."
+                            fi
+                        '''
+                    }
                 }
             }
         }
 
-        stage('Post-Deployment') {
+        stage('Post-Deployment Org Info') {
             steps {
                 script {
-                    sh '''
-                        echo "Displaying org info..."
-                        export PATH=$PATH:"${WORKSPACE}/sf/bin"
-                        sf org display --target-org $SFDX_USERNAME
-                    '''
+                    withCredentials([
+                        string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
+                    ]) {
+                        sh '''
+                            export PATH=$PATH:"${WORKSPACE}/sf/bin"
+                            sf org display --target-org $SFDX_USERNAME
+                        '''
+                    }
                 }
             }
         }
@@ -107,10 +137,10 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment successful!'
+            echo ' Deployment completed successfully using delta strategy!'
         }
         failure {
-            echo 'Deployment failed.'
+            echo ' Deployment failed. Check logs for details.'
         }
     }
 }
