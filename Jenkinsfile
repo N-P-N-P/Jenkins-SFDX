@@ -60,7 +60,7 @@ pipeline {
 
                     export PATH=$PATH:"${WORKSPACE}/sfdx-cli/bin"
                     echo "Installing sfdx-git-delta plugin..."
-                    sfdx plugins:install sfdx-git-delta --force
+                    sfdx plugins:install sfdx-git-delta --yes --no-prompt --force
                 '''
             }
         }
