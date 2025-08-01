@@ -34,11 +34,12 @@ pipeline {
                             echo "Checking for sf binary..."
                             find . -name 'sf'
 
-                            # Try executing the sf binary from the extracted folder
-                            if [ -f "./sf" ]; then
-                                echo "Salesforce CLI (sf) binary found."
-                                chmod +x ./sf
-                                ./sf --version
+                            # Now, adjust the path to where the binary is located
+                            # The 'sf' binary was found in ./sf/bin/sf, so execute it from there
+                            if [ -f "./sf/bin/sf" ]; then
+                                echo "Salesforce CLI (sf) binary found at ./sf/bin/sf."
+                                chmod +x ./sf/bin/sf
+                                ./sf/bin/sf --version
                             else
                                 echo "Error: Salesforce CLI (sf) binary not found."
                                 exit 1
