@@ -43,7 +43,15 @@ pipeline {
                         fi
                     '''
                     // After adding to PATH, check if `sf` works by checking its version
-                    sh 'sf --version'
+                    sh '''
+                        if ! command -v sf &> /dev/null
+                        then
+                            echo "Error: sf command not found after installation."
+                            exit 1
+                        else
+                            sf --version
+                        fi
+                    '''
                 }
             }
         }
