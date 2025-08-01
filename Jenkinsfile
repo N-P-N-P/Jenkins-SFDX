@@ -26,19 +26,17 @@ pipeline {
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
 
-                            # List files in the current directory after extraction
+                            # List the files after extraction to understand the directory structure
                             echo "Listing extracted files:"
                             ls -alh
 
-                            # List files inside the extracted folder (if any)
-                            find . -type f
-
-                            # Check if 'install.sh' exists and make it executable
-                            if [ -f "install.sh" ]; then
-                                chmod +x install.sh
-                                ./install.sh --no-sudo
+                            # Check if the sf binary is available in the extracted directory
+                            if [ -f "./sf-cli/sf" ]; then
+                                echo "Salesforce CLI (sf) binary found."
+                                chmod +x ./sf-cli/sf
+                                ./sf-cli/sf --version
                             else
-                                echo "Error: install.sh script not found."
+                                echo "Error: Salesforce CLI (sf) binary not found."
                                 exit 1
                             fi
 
