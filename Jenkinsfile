@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+
     environment {
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
     }
@@ -15,7 +15,7 @@ pipeline {
         stage('Install Salesforce CLI (sf)') {
             steps {
                 script {
-                    // Download the Salesforce CLI if it's not installed
+                    // Check if sf is already installed
                     sh '''
                         if ! command -v sf &> /dev/null
                         then
@@ -25,11 +25,13 @@ pipeline {
                             
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
-                            
+
                             # Check if the 'sf' binary exists in the extracted folder
                             if [ -f "./sf/bin/sf" ]; then
                                 echo "Salesforce CLI (sf) binary found."
                                 chmod +x ./sf/bin/sf
+                                
+                                # Add sf binary to PATH
                                 export PATH=$PATH:$(pwd)/sf/bin
                                 echo "Salesforce CLI added to PATH."
                             else
@@ -40,7 +42,7 @@ pipeline {
                             echo "Salesforce CLI (sf) is already installed."
                         fi
                     '''
-                    // Check if `sf` CLI is installed correctly
+                    // After adding to PATH, check if `sf` works by checking its version
                     sh 'sf --version'
                 }
             }
