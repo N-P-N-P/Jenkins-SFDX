@@ -20,15 +20,18 @@ pipeline {
                         if ! command -v sf &> /dev/null
                         then
                             echo "Salesforce CLI not found, installing..."
-                            # Download and install Salesforce CLI (sf)
+                            # Download Salesforce CLI (sf)
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
                             
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
 
-                            # List files in the current directory to inspect the extracted structure
+                            # List files in the current directory after extraction
                             echo "Listing extracted files:"
                             ls -alh
+
+                            # List files inside the extracted folder (if any)
+                            find . -type f
 
                             # Check if 'install.sh' exists and make it executable
                             if [ -f "install.sh" ]; then
