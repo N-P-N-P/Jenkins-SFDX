@@ -29,12 +29,16 @@ pipeline {
                             # List the files after extraction to understand the directory structure
                             echo "Listing extracted files:"
                             ls -alh
-
+                            
                             # Check if the sf binary is available in the extracted directory
-                            if [ -f "./sf-cli/sf" ]; then
+                            echo "Checking for sf binary..."
+                            find . -name 'sf'
+
+                            # Try executing the sf binary from the extracted folder
+                            if [ -f "./sf" ]; then
                                 echo "Salesforce CLI (sf) binary found."
-                                chmod +x ./sf-cli/sf
-                                ./sf-cli/sf --version
+                                chmod +x ./sf
+                                ./sf --version
                             else
                                 echo "Error: Salesforce CLI (sf) binary not found."
                                 exit 1
