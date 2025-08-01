@@ -1,6 +1,6 @@
 pipeline {
     agent any
-
+    
     environment {
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL
     }
@@ -12,51 +12,36 @@ pipeline {
             }
         }
 
-        stage('Install Salesforce CLI') {
+        stage('Install Salesforce CLI (sf)') {
             steps {
                 script {
-                    // Check if Salesforce CLI (sf) is already installed
+                    // Download the Salesforce CLI if it's not installed
                     sh '''
                         if ! command -v sf &> /dev/null
                         then
-                            echo "Salesforce CLI not found, installing..."
-                            # Download Salesforce CLI (sf)
+                            echo "Salesforce CLI (sf) not found, installing..."
+                            # Download Salesforce CLI
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
-
+                            
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
-
-                            # List the files after extraction to understand the directory structure
-                            echo "Listing extracted files:"
-                            ls -alh
-
-                            # Check if the sf binary is available in the extracted directory
-                            echo "Checking for sf binary..."
-                            find . -name 'sf'
-
-                            # Now, adjust the path to where the binary is located
-                            # The 'sf' binary was found in ./sf/bin/sf, so execute it from there
+                            
+                            # Check if the 'sf' binary exists in the extracted folder
                             if [ -f "./sf/bin/sf" ]; then
-                                echo "Salesforce CLI (sf) binary found at ./sf/bin/sf."
+                                echo "Salesforce CLI (sf) binary found."
                                 chmod +x ./sf/bin/sf
-                                export PATH=$PATH:$(pwd)/sf/bin  # Add sf to PATH
-                                ./sf/bin/sf --version
+                                export PATH=$PATH:$(pwd)/sf/bin
+                                echo "Salesforce CLI added to PATH."
                             else
                                 echo "Error: Salesforce CLI (sf) binary not found."
                                 exit 1
                             fi
-
-                            # Verify installation
-                            if command -v sf &> /dev/null; then
-                                echo "Salesforce CLI installed successfully"
-                            else
-                                echo "Salesforce CLI installation failed"
-                                exit 1
-                            fi
                         else
-                            echo "Salesforce CLI is already installed"
+                            echo "Salesforce CLI (sf) is already installed."
                         fi
                     '''
+                    // Check if `sf` CLI is installed correctly
+                    sh 'sf --version'
                 }
             }
         }
@@ -69,9 +54,9 @@ pipeline {
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Securely pass the JWT key file and client ID into the 'sh' step
+                        // Use sf CLI to authenticate
                         sh '''
-                            # Authenticate using Salesforce CLI securely
+                            echo "Authenticating with Salesforce using JWT..."
                             sf force:auth:jwt:grant --clientid $SFDX_CLIENT_ID --jwtkeyfile $SFDX_JWT_KEY --username $SFDX_USERNAME --instanceurl $SFDX_INSTANCE_URL
                         '''
                     }
