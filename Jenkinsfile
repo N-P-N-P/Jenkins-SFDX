@@ -1,10 +1,10 @@
 pipeline {
     agent any
-    
+
     environment {
         SFDX_INSTANCE_URL = 'https://login.salesforce.com'  // Salesforce instance URL (or test.salesforce.com)
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
@@ -22,14 +22,14 @@ pipeline {
                             echo "Salesforce CLI not found, installing..."
                             # Download Salesforce CLI (sf)
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
-                            
+
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
 
                             # List the files after extraction to understand the directory structure
                             echo "Listing extracted files:"
                             ls -alh
-                            
+
                             # Check if the sf binary is available in the extracted directory
                             echo "Checking for sf binary..."
                             find . -name 'sf'
@@ -71,11 +71,11 @@ pipeline {
                     ]) {
                         // Securely pass the JWT key file and client ID into the 'sh' step
                         sh """
-                            sf force:auth:jwt:grant \
-                                --clientid ${SFDX_CLIENT_ID} \
-                                --jwtkeyfile ${SFDX_JWT_KEY} \
-                                --username ${SFDX_USERNAME} \
-                                --instanceurl ${SFDX_INSTANCE_URL}
+                            export SFDX_CLIENT_ID=${SFDX_CLIENT_ID}
+                            export SFDX_JWT_KEY=${SFDX_JWT_KEY}
+                            export SFDX_USERNAME=${SFDX_USERNAME}
+                            export SFDX_INSTANCE_URL=${SFDX_INSTANCE_URL}
+                            sf force:auth:jwt:grant --clientid \$SFDX_CLIENT_ID --jwtkeyfile \$SFDX_JWT_KEY --username \$SFDX_USERNAME --instanceurl \$SFDX_INSTANCE_URL
                         """
                     }
                 }
@@ -90,7 +90,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run Tests') {
             steps {
                 script {
@@ -98,7 +98,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Deploy to Salesforce') {
             steps {
                 script {
@@ -110,7 +110,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Post-Deployment') {
             steps {
                 script {
@@ -119,7 +119,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         success {
             echo 'Deployment successful!'
