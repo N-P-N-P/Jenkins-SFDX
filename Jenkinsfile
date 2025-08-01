@@ -65,27 +65,7 @@ pipeline {
             }
         }
 
-        // Stage 4: Install Dependencies (for Salesforce and Delta Lake)
-        stage('Install Dependencies') {
-            steps {
-                script {
-                    // Install Salesforce LWC Dev Server plugin
-                    sh '''
-                        export PATH=$PATH:${WORKSPACE}/sf/bin
-                        echo "Installing LWC Dev Server plugin..."
-                        sf plugins:install @salesforce/lwc-dev-server
-                    '''
-                    // Install Delta Lake dependencies (Python, Spark, etc.)
-                    sh '''
-                        echo "Setting up Delta Lake dependencies..."
-                        # Example: Install Delta Lake Python dependencies (if using PySpark)
-                        pip install delta-spark pyspark
-                    '''
-                }
-            }
-        }
-
-        // Stage 5: Run Delta Lake Job (process data using Spark and Delta)
+        // Stage 4: Run Delta Lake Job (process data using Spark and Delta)
         stage('Run Delta Lake Data Pipeline') {
             steps {
                 script {
@@ -101,7 +81,7 @@ pipeline {
             }
         }
 
-        // Stage 6: Run Salesforce Tests
+        // Stage 5: Run Salesforce Tests
         stage('Run Tests') {
             steps {
                 script {
@@ -113,7 +93,7 @@ pipeline {
             }
         }
 
-        // Stage 7: Deploy to Salesforce (only if tests are successful)
+        // Stage 6: Deploy to Salesforce (only if tests are successful)
         stage('Deploy to Salesforce') {
             steps {
                 script {
@@ -132,7 +112,7 @@ pipeline {
             }
         }
 
-        // Stage 8: Post-Deployment Steps
+        // Stage 7: Post-Deployment Steps
         stage('Post-Deployment') {
             steps {
                 script {
