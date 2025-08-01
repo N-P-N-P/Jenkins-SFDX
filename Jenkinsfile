@@ -20,14 +20,14 @@ pipeline {
                         if ! command -v sf &> /dev/null
                         then
                             echo "Salesforce CLI not found, installing..."
-                            # Download and install Salesforce CLI (sf)
+                            # Download and install Salesforce CLI (sf) without using sudo
                             curl -L https://developer.salesforce.com/media/salesforce-cli/sf/channels/stable/sf-linux-x64.tar.xz -o sf.tar.xz
                             
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
                             
-                            # Install Salesforce CLI
-                            sudo ./install.sh
+                            # Install Salesforce CLI (sf) locally in the Jenkins workspace
+                            ./install.sh --no-sudo
                             
                             # Verify installation
                             if command -v sf &> /dev/null; then
