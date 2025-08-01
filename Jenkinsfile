@@ -26,8 +26,13 @@ pipeline {
                             # Extract the downloaded tar.xz file
                             tar -xvf sf.tar.xz
 
-                            # Navigate to the directory where install.sh is located
-                            cd sf-linux-x64
+                            # List files to identify the extracted directory
+                            echo "Listing extracted files:"
+                            ls -alh
+
+                            # Try to find the directory and cd into it
+                            # You should adjust this if the extracted files are in a different folder
+                            cd sf-linux-x64 || exit 1  # Modify this line based on the output of ls command
 
                             # Make sure the install.sh script is executable
                             chmod +x install.sh
