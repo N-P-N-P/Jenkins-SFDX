@@ -21,13 +21,13 @@ pipeline {
                         string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'), // Client ID
                         string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME') // Salesforce Username
                     ]) {
-                        // Securely pass credentials as environment variables to the 'sh' step
+                        // Run the authentication command without using Groovy interpolation for secrets
                         sh """
-                            export SFDX_CLIENT_ID=${SFDX_CLIENT_ID}
-                            export SFDX_JWT_KEY=${SFDX_JWT_KEY}
-                            export SFDX_USERNAME=${SFDX_USERNAME}
-                            export SFDX_INSTANCE_URL=${SFDX_INSTANCE_URL}
-                            sfdx force:auth:jwt:grant --clientid \$SFDX_CLIENT_ID --jwtkeyfile \$SFDX_JWT_KEY --username \$SFDX_USERNAME --instanceurl \$SFDX_INSTANCE_URL
+                            sfdx force:auth:jwt:grant \
+                                --clientid ${SFDX_CLIENT_ID} \
+                                --jwtkeyfile ${SFDX_JWT_KEY} \
+                                --username ${SFDX_USERNAME} \
+                                --instanceurl ${SFDX_INSTANCE_URL}
                         """
                     }
                 }
