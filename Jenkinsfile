@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    parameters {
-        string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Git Branch to Deploy')
-        choice(name: 'SF_ENV', choices: ['dev', 'qa', 'prod'], description: 'Salesforce Environment')
-    }
-
     environment {
         SF_ORG_INSTANCE_URL = 'https://login.salesforce.com'
         PATH = "${WORKSPACE}/sfdx-cli/bin:$PATH"
@@ -14,14 +9,14 @@ pipeline {
     stages {
         stage('Checkout Source') {
             steps {
-                git url: 'https://github.com/N-P-N-P/Jenkins-SFDX.git', branch: "${params.BRANCH_NAME}"
+                git url: 'https://github.com/N-P-N-P/Jenkins-SFDX.git', branch: 'main'
             }
         }
 
         stage('Install Salesforce CLI & Git Delta') {
             steps {
                 sh '''
-                    echo "Installing Salesforce CLI..."
+                    echo "Installing legacy Salesforce CLI..."
                     curl -sL https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.gz -o sfdx.tar.gz
                     mkdir -p sfdx-cli
                     tar -xzf sfdx.tar.gz -C sfdx-cli --strip-components 1
@@ -39,7 +34,7 @@ pipeline {
                 withCredentials([
                     file(credentialsId: 'salesforce-jwt-key', variable: 'SFDX_JWT_KEY'),
                     string(credentialsId: 'salesforce-client-id', variable: 'SFDX_CLIENT_ID'),
-                    string(credentialsId: "salesforce-username-${params.SF_ENV}", variable: 'SFDX_USERNAME')
+                    string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')
                 ]) {
                     sh '''
                         echo "Authenticating with Salesforce..."
@@ -54,46 +49,52 @@ pipeline {
         stage('Generate Delta') {
             steps {
                 sh '''
-                    echo "Generating metadata delta..."
-                    git fetch origin ${params.BRANCH_NAME}
+                    echo "Generating metadata diff using sfdx-git-delta..."
+                    git fetch origin main
                     sfdx sgd:source:delta --from "HEAD~1" --to "HEAD" --output changed
                 '''
             }
         }
 
-        stage('Validate Metadata') {
-            when {
-                expression { fileExists('changed/force-app') }
-            }
+        stage('Deploy Incremental Changes') {
             steps {
-                withCredentials([string(credentialsId: "salesforce-username-${params.SF_ENV}", variable: 'SFDX_USERNAME')]) {
+                withCredentials([string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')]) {
                     sh '''
-                        echo "Validating metadata with Apex tests..."
                         export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
-                        sfdx force:source:deploy -p changed/force-app --target-org $SFDX_USERNAME --checkonly --testlevel RunLocalTests --wait 10
+                        if [ -d "changed/force-app" ]; then
+                            echo "Deploying changed metadata..."
+                            sfdx force:source:deploy -p changed/force-app --target-org $SFDX_USERNAME --testlevel RunLocalTests
+                        else
+                            echo "No changes to deploy."
+                        fi
                     '''
                 }
             }
         }
 
-        stage('Deploy Changes') {
+        stage('Run Apex Tests (if needed)') {
             when {
                 expression { fileExists('changed/force-app') }
             }
             steps {
-                withCredentials([string(credentialsId: "salesforce-username-${params.SF_ENV}", variable: 'SFDX_USERNAME')]) {
+                withCredentials([string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')]) {
                     sh '''
-                        echo "Deploying validated metadata..."
+                        echo "Running Apex tests..."
                         export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
-                        sfdx force:source:deploy -p changed/force-app --target-org $SFDX_USERNAME --testlevel NoTestRun --wait 10
+                        sfdx apex run test --result-format junit --output-dir test-results --wait 10 --target-org $SFDX_USERNAME
                     '''
+                }
+            }
+            post {
+                always {
+                    junit 'test-results/test-result-*.xml'
                 }
             }
         }
 
         stage('Post-Deployment Org Info') {
             steps {
-                withCredentials([string(credentialsId: "salesforce-username-${params.SF_ENV}", variable: 'SFDX_USERNAME')]) {
+                withCredentials([string(credentialsId: 'your-salesforce-username', variable: 'SFDX_USERNAME')]) {
                     sh '''
                         export PATH=${WORKSPACE}/sfdx-cli/bin:$PATH
                         sfdx org display --target-org $SFDX_USERNAME
@@ -105,10 +106,10 @@ pipeline {
 
     post {
         success {
-            echo ' Deployment completed successfully!'
+            echo ' Incremental deployment completed successfully!'
         }
         failure {
-            echo ' Deployment failed. Check logs and test results.'
+            echo ' Deployment failed. Check logs and test reports for details.'
         }
     }
 }
